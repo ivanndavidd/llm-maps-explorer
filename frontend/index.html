@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Maps Integration</title>
+    <meta
+      name="description"
+      content="AI-powered location search with interactive maps"
+    />
+
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://maps.googleapis.com" />
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- External Libraries -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"
+      defer
+    ></script>
+
+    <!-- Styles -->
+    <style>
+      /* CSS Custom Properties for consistent theming */
+      :root {
+        --primary-color: #667eea;
+        --primary-dark: #5a67d8;
+        --secondary-color: #764ba2;
+        --success-color: #48bb78;
+        --error-color: #f56565;
+        --warning-color: #ed8936;
+        --info-color: #4299e1;
+
+        --text-primary: #2d3748;
+        --text-secondary: #000000;
+        --text-muted: #718096;
+        --text-light: #a0aec0;
+
+        --bg-primary: #ffffff;
+        --bg-secondary: #f7fafc;
+        --bg-tertiary: #edf2f7;
+
+        --border-color: #e2e8f0;
+        --border-focus: var(--primary-color);
+
+        --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+          0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+        --radius-sm: 0.375rem;
+        --radius-md: 0.5rem;
+        --radius-lg: 0.75rem;
+        --radius-xl: 1rem;
+
+        --spacing-xs: 0.25rem;
+        --spacing-sm: 0.5rem;
+        --spacing-md: 1rem;
+        --spacing-lg: 1.5rem;
+        --spacing-xl: 2rem;
+        --spacing-2xl: 3rem;
+
+        --transition-fast: 0.15s ease-in-out;
+        --transition-normal: 0.25s ease-in-out;
+        --transition-slow: 0.5s ease-in-out;
+      }
+
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Roboto", sans-serif;
+        line-height: 1.6;
+        color: var(--text-primary);
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          var(--secondary-color) 100%
+        );
+        min-height: 100vh;
+        font-size: 16px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Layout Components */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--spacing-lg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: var(--spacing-2xl);
+        color: white;
+        animation: fadeInDown 0.8s ease-out;
+      }
+
+      .header h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 700;
+        margin-bottom: var(--spacing-sm);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .header p {
+        font-size: clamp(1rem, 2.5vw, 1.25rem);
+        opacity: 0.9;
+        font-weight: 300;
+      }
+
+      /* Search Section */
+      .search-section {
+        background: var(--bg-primary);
+        border-radius: var(--radius-xl);
+        padding: var(--spacing-2xl);
+        box-shadow: var(--shadow-xl);
+        margin-bottom: var(--spacing-2xl);
+        animation: fadeInUp 0.8s ease-out 0.2s both;
+      }
+
+      .search-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .form-label {
+        font-weight: 500;
+        margin-bottom: var(--spacing-sm);
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .form-input,
+      .form-select {
+        padding: var(--spacing-md);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        font-size: 1rem;
+        font-family: inherit;
+        transition: var(--transition-normal);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+      }
+
+      .form-input:focus,
+      .form-select:focus {
+        outline: none;
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .form-input::placeholder {
+        color: var(--text-light);
+      }
+
+      /* Buttons */
+      .btn {
+        padding: var(--spacing-md) var(--spacing-xl);
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-sm);
+        font-family: inherit;
+        white-space: nowrap;
+      }
+
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color),
+          var(--secondary-color)
+        );
+        color: white;
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        filter: brightness(1.05);
+      }
+
+      .btn-primary:active {
+        transform: translateY(0);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-secondary {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+      }
+
+      .btn-secondary:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--primary-color);
+      }
+
+      .btn-location {
+        margin-top: var(--spacing-sm);
+        font-size: 0.875rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+
+      /* Search Button Full Width */
+      .search-btn-container {
+        grid-column: 1 / -1;
+      }
+
+      .search-btn {
+        width: 100%;
+        font-size: 1.125rem;
+        padding: var(--spacing-lg) var(--spacing-xl);
+      }
+
+      /* Loading States */
+      .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Alert Messages */
+      .alert {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-lg);
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      .alert-error {
+        background-color: #fed7d7;
+        color: #9b2c2c;
+        border-left: 4px solid var(--error-color);
+      }
+
+      .alert-success {
+        background-color: #c6f6d5;
+        color: #276749;
+        border-left: 4px solid var(--success-color);
+      }
+
+      /* Results Section */
+      .results-container {
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) minmax(300px, 1.5fr);
+        gap: var(--spacing-2xl);
+        animation: fadeInUp 0.8s ease-out 0.4s both;
+      }
+
+      /* AI Response & Places */
+      .response-section {
+        background: var(--bg-primary);
+        border-radius: var(--radius-xl);
+        padding: var(--spacing-2xl);
+        box-shadow: var(--shadow-lg);
+        height: fit-content;
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: var(--spacing-lg);
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+      }
+
+      .ai-response {
+        background: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+        font-size: 1rem !important;
+        line-height: 1.6;
+        color: #212529 !important;
+        font-weight: 500 !important;
+      }
+
+      /* Places List */
+      .places-container {
+        max-height: 500px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--primary-color) var(--bg-tertiary);
+      }
+
+      .places-container::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .places-container::-webkit-scrollbar-track {
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+      }
+
+      .places-container::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 3px;
+      }
+
+      .place-item {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-md);
+        cursor: pointer;
+        transition: var(--transition-normal);
+        background: var(--bg-primary);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .place-item::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--primary-color);
+        transform: scaleY(0);
+        transition: var(--transition-normal);
+      }
+
+      .place-item:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
+
+      .place-item:hover::before {
+        transform: scaleY(1);
+      }
+
+      .place-item.selected {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, #f8faff, #f0f4ff);
+        box-shadow: var(--shadow-md);
+      }
+
+      .place-item.selected::before {
+        transform: scaleY(1);
+      }
+
+      .place-name {
+        font-weight: 600;
+        font-size: 1.125rem;
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-sm);
+        line-height: 1.3;
+      }
+
+      .place-address {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: var(--spacing-sm);
+        line-height: 1.4;
+      }
+
+      .place-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+      }
+
+      .place-rating {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: 0.875rem;
+      }
+
+      .rating-stars {
+        color: #f6ad55;
+        font-weight: bold;
+      }
+
+      .rating-value {
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+
+      .price-level {
+        font-size: 0.875rem;
+        color: var(--success-color);
+      }
+
+      .place-actions {
+        margin-top: var(--spacing-md);
+        display: flex;
+        gap: var(--spacing-sm);
+        flex-wrap: wrap;
+      }
+
+      .btn-small {
+        font-size: 0.8rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+
+      /* Map Section */
+      .map-section {
+        background: var(--bg-primary);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        position: relative;
+        min-height: 600px;
+      }
+
+      .map-container {
+        width: 100%;
+        height: 600px;
+        position: relative;
+      }
+
+      .map-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-muted);
+        flex-direction: column;
+        gap: var(--spacing-md);
+      }
+
+      .map-loading-text {
+        font-size: 1.125rem;
+        font-weight: 500;
+      }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: var(--spacing-2xl);
+        color: var(--text-muted);
+      }
+
+      .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: var(--spacing-lg);
+        opacity: 0.5;
+      }
+
+      .empty-state-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: var(--spacing-sm);
+        color: var(--text-secondary);
+      }
+
+      .empty-state-description {
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+
+      /* Animations */
+      @keyframes fadeInDown {
+        from {
+          opacity: 0;
+          transform: translateY(-30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-100%);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .container {
+          padding: var(--spacing-md);
+        }
+
+        .search-form {
+          grid-template-columns: 1fr;
+        }
+
+        .results-container {
+          grid-template-columns: 1fr;
+          gap: var(--spacing-lg);
+        }
+
+        .place-meta {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .place-actions {
+          margin-top: var(--spacing-sm);
+        }
+
+        .map-container {
+          height: 400px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .search-section,
+        .response-section,
+        .map-section {
+          padding: var(--spacing-lg);
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .header p {
+          font-size: 1rem;
+        }
+      }
+
+      /* High contrast mode support */
+      @media (prefers-contrast: high) {
+        :root {
+          --border-color: #000000;
+          --text-muted: #000000;
+          --bg-secondary: #ffffff;
+        }
+      }
+
+      /* Reduced motion support */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* Dark mode support (future enhancement) */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --text-primary: #f7fafc;
+          --text-secondary: #000000;
+          --text-muted: #a0aec0;
+          --bg-primary: #2d3748;
+          --bg-secondary: #4a5568;
+          --bg-tertiary: #718096;
+          --border-color: #4a5568;
+        }
+      }
+
+      /* Focus visible for better accessibility */
+      .btn:focus-visible,
+      .form-input:focus-visible,
+      .form-select:focus-visible,
+      .place-item:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+      }
+
+      /* Hide content from screen readers when loading */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="sr-only">Skip to main content</a>
+
+    <div class="container">
+      <!-- Header -->
+      <header class="header" role="banner">
+        <h1>🗺️ AI Maps Explorer</h1>
+        <p>Discover places with the power of artificial intelligence</p>
+      </header>
+
+      <!-- Main Content -->
+      <main id="main-content" role="main">
+        <!-- Search Section -->
+        <section class="search-section" aria-labelledby="search-heading">
+          <h2 id="search-heading" class="sr-only">Search for places</h2>
+
+          <form id="searchForm" class="search-form" novalidate>
+            <div class="form-group">
+              <label for="query" class="form-label"
+                >What are you looking for?</label
+              >
+              <input
+                type="text"
+                id="query"
+                name="query"
+                class="form-input"
+                placeholder="e.g., best coffee shops, Italian restaurants, gas stations"
+                required
+                autocomplete="off"
+                aria-describedby="query-help"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="location" class="form-label">Location</label>
+              <input
+                type="text"
+                id="location"
+                name="location"
+                class="form-input"
+                placeholder="e.g., Jakarta, Bandung, or leave empty"
+                autocomplete="address-level2"
+                aria-describedby="location-help"
+              />
+              <button
+                type="button"
+                id="locationBtn"
+                class="btn btn-secondary btn-location"
+              >
+                📍 Use My Location
+              </button>
+            </div>
+
+            <div class="form-group">
+              <label for="radius" class="form-label">Search Radius</label>
+              <select
+                id="radius"
+                name="radius"
+                class="form-select"
+                aria-describedby="radius-help"
+              >
+                <option value="1000">1 km nearby</option>
+                <option value="5000" selected>5 km radius</option>
+                <option value="10000">10 km radius</option>
+                <option value="25000">25 km radius</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="type" class="form-label">Place Type</label>
+              <select
+                id="type"
+                name="type"
+                class="form-select"
+                aria-describedby="type-help"
+              >
+                <option value="">Any type</option>
+                <option value="restaurant">Restaurants</option>
+                <option value="cafe">Cafes & Coffee Shops</option>
+                <option value="gas_station">Gas Stations</option>
+                <option value="hospital">Hospitals</option>
+                <option value="bank">Banks & ATMs</option>
+                <option value="shopping_mall">Shopping Malls</option>
+                <option value="tourist_attraction">Tourist Attractions</option>
+                <option value="lodging">Hotels & Lodging</option>
+              </select>
+            </div>
+
+            <div class="search-btn-container">
+              <button
+                type="submit"
+                id="searchBtn"
+                class="btn btn-primary search-btn"
+              >
+                <span id="searchBtnText">🔍 Search Places</span>
+                <div
+                  id="searchBtnSpinner"
+                  class="loading-spinner"
+                  style="display: none"
+                ></div>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Alert Container -->
+        <div id="alertContainer" role="alert" aria-live="polite"></div>
+
+        <!-- Results Container -->
+        <section
+          id="resultsContainer"
+          class="results-container"
+          style="display: none"
+          aria-labelledby="results-heading"
+        >
+          <h2 id="results-heading" class="sr-only">Search results</h2>
+
+          <!-- AI Response & Places List -->
+          <div class="response-section">
+            <div id="aiResponseSection">
+              <h3 class="section-title">🤖 AI Assistant</h3>
+              <div
+                id="aiResponse"
+                class="ai-response"
+                role="region"
+                aria-label="AI response"
+              >
+                <div class="empty-state">
+                  <div class="empty-state-icon">🤖</div>
+                  <div class="empty-state-title">Ready to help!</div>
+                  <div class="empty-state-description">
+                    Search for places and I'll provide personalized
+                    recommendations.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="placesSection">
+              <h3 class="section-title">
+                📍 Places Found
+                <span
+                  id="placesCount"
+                  class="text-muted"
+                  style="font-size: 0.875rem; font-weight: normal"
+                ></span>
+              </h3>
+              <div
+                id="placesList"
+                class="places-container"
+                role="region"
+                aria-label="Places list"
+              >
+                <div class="empty-state">
+                  <div class="empty-state-icon">🔍</div>
+                  <div class="empty-state-title">No places yet</div>
+                  <div class="empty-state-description">
+                    Start searching to discover amazing places around you.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Map Section -->
+          <div class="map-section">
+            <div id="mapContainer" class="map-container">
+              <div id="mapLoading" class="map-loading">
+                <div class="empty-state-icon">🗺️</div>
+                <div class="map-loading-text">
+                  Interactive map will appear here
+                </div>
+                <p style="font-size: 0.875rem; opacity: 0.8">
+                  Search for places to see them on the map
+                </p>
+              </div>
+              <div
+                id="map"
+                style="display: none; width: 100%; height: 100%"
+              ></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Configuration Script -->
+    <script>
+      // Configuration object for easy customization
+      const CONFIG = {
+        API_BASE_URL: "http://localhost:8000",
+        API_SECRET_KEY: "development-key-123",
+        GOOGLE_MAPS_API_KEY: "AIzaSyC4c1k36jGQZhmJE92omUDQMDcEI1ZX-UA",
+        DEFAULT_LOCATION: "Jakarta",
+        DEFAULT_COORDINATES: { lat: -6.2088, lng: 106.8456 },
+        REQUEST_TIMEOUT: 30000,
+        DEBOUNCE_DELAY: 300,
+        MAX_PLACES: 15,
+        MAP_ZOOM: 12,
+        DETAILED_ZOOM: 16,
+      };
+
+      // Application state management
+      class AppState {
+        constructor() {
+          this.currentPlaces = [];
+          this.selectedPlaceIndex = null;
+          this.map = null;
+          this.markers = [];
+          this.infoWindow = null;
+          this.isLoading = false;
+          this.userLocation = null;
+        }
+
+        reset() {
+          this.currentPlaces = [];
+          this.selectedPlaceIndex = null;
+          this.clearMarkers();
+        }
+
+        clearMarkers() {
+          this.markers.forEach((marker) => marker.setMap(null));
+          this.markers = [];
+          if (this.infoWindow) {
+            this.infoWindow.close();
+          }
+        }
+      }
+
+      // Initialize app state
+      const appState = new AppState();
+
+      // Utility functions
+      const utils = {
+        debounce(func, wait) {
+          let timeout;
+          return function executedFunction(...args) {
+            const later = () => {
+              clearTimeout(timeout);
+              func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+          };
+        },
+
+        sanitizeHTML(str) {
+          const temp = document.createElement("div");
+          temp.textContent = str;
+          return temp.innerHTML;
+        },
+
+        formatRating(rating) {
+          if (!rating) return "N/A";
+          const stars = "★".repeat(Math.round(rating));
+          return { stars, value: rating.toFixed(1) };
+        },
+
+        formatPriceLevel(priceLevel) {
+          if (!priceLevel) return "";
+          return "💰".repeat(priceLevel);
+        },
+
+        showAlert(message, type = "error") {
+          const alertContainer = document.getElementById("alertContainer");
+          const alertClass = type === "error" ? "alert-error" : "alert-success";
+
+          alertContainer.innerHTML = `
+                    <div class="alert ${alertClass}" role="alert">
+                        ${utils.sanitizeHTML(message)}
+                        <button onclick="this.parentElement.remove()" style="float: right; background: none; border: none; font-size: 1.2rem; cursor: pointer;" aria-label="Close alert">&times;</button>
+                    </div>
+                `;
+
+          // Auto-remove after 5 seconds
+          setTimeout(() => {
+            const alert = alertContainer.querySelector(".alert");
+            if (alert) {
+              alert.style.animation = "slideOut 0.3s ease-out forwards";
+              setTimeout(() => alert.remove(), 300);
+            }
+          }, 5000);
+        },
+
+        setLoadingState(isLoading) {
+          appState.isLoading = isLoading;
+          const searchBtn = document.getElementById("searchBtn");
+          const searchBtnText = document.getElementById("searchBtnText");
+          const searchBtnSpinner = document.getElementById("searchBtnSpinner");
+
+          if (isLoading) {
+            searchBtn.disabled = true;
+            searchBtnText.style.display = "none";
+            searchBtnSpinner.style.display = "block";
+            searchBtn.setAttribute("aria-busy", "true");
+          } else {
+            searchBtn.disabled = false;
+            searchBtnText.style.display = "block";
+            searchBtnSpinner.style.display = "none";
+            searchBtn.setAttribute("aria-busy", "false");
+          }
+        },
+
+        async getCurrentLocation() {
+          return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+              reject(new Error("Geolocation is not supported by this browser"));
+              return;
+            }
+
+            const options = {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 300000, // 5 minutes
+            };
+
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                resolve({
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude,
+                });
+              },
+              (error) => {
+                let message = "Unable to get your location";
+                switch (error.code) {
+                  case error.PERMISSION_DENIED:
+                    message = "Location access denied by user";
+                    break;
+                  case error.POSITION_UNAVAILABLE:
+                    message = "Location information unavailable";
+                    break;
+                  case error.TIMEOUT:
+                    message = "Location request timed out";
+                    break;
+                }
+                reject(new Error(message));
+              },
+              options
+            );
+          });
+        },
+      };
+
+      class ApiService {
+        static async searchPlaces(searchData) {
+          try {
+            const response = await fetch(`${CONFIG.API_BASE_URL}/api/search`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${CONFIG.API_SECRET_KEY}`,
+              },
+              body: JSON.stringify(searchData),
+              // HAPUS: signal: AbortSignal.timeout(CONFIG.REQUEST_TIMEOUT),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(
+                errorData.detail ||
+                  `HTTP ${response.status}: ${response.statusText}`
+              );
+            }
+
+            return await response.json();
+          } catch (error) {
+            // HAPUS timeout check karena tidak ada lagi AbortSignal
+            throw error;
+          }
+        }
+
+        static async getPlaceDetails(placeId) {
+          try {
+            const response = await fetch(
+              `${CONFIG.API_BASE_URL}/api/place/${placeId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${CONFIG.API_SECRET_KEY}`,
+                },
+                // HAPUS: signal: AbortSignal.timeout(CONFIG.REQUEST_TIMEOUT),
+              }
+            );
+
+            if (!response.ok) {
+              throw new Error("Failed to get place details");
+            }
+
+            return await response.json();
+          } catch (error) {
+            console.error("Place details error:", error);
+            throw error;
+          }
+        }
+      }
+
+      // UI management functions
+      class UIManager {
+        static displayResults(data) {
+          // Update AI response
+          const aiResponse = document.getElementById("aiResponse");
+          aiResponse.innerHTML = `
+                    <div style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        ${utils.sanitizeHTML(data.llm_response)}
+                    </div>
+                `;
+
+          // Update places list
+          UIManager.displayPlaces(data.places);
+
+          // Initialize map
+          MapManager.initializeMap(data.map_center, data.places);
+
+          // Show results container
+          const resultsContainer = document.getElementById("resultsContainer");
+          resultsContainer.style.display = "grid";
+          resultsContainer.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+
+        static displayPlaces(places) {
+          const placesList = document.getElementById("placesList");
+          const placesCount = document.getElementById("placesCount");
+
+          if (!places || places.length === 0) {
+            placesList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">😔</div>
+                            <div class="empty-state-title">No places found</div>
+                            <div class="empty-state-description">
+                                Try adjusting your search terms or expanding the search radius.
+                            </div>
+                        </div>
+                    `;
+            placesCount.textContent = "";
+            return;
+          }
+
+          placesCount.textContent = `(${places.length} found)`;
+
+          placesList.innerHTML = places
+            .map((place, index) => {
+              const rating = utils.formatRating(place.rating);
+              const priceLevel = utils.formatPriceLevel(place.price_level);
+              const address =
+                place.formatted_address ||
+                place.vicinity ||
+                "Address not available";
+
+              return `
+                        <div class="place-item" onclick="PlaceManager.selectPlace(${index})" 
+                             data-index="${index}" role="button" tabindex="0" 
+                             aria-label="Select ${place.name}"
+                             onkeydown="if(event.key==='Enter'||event.key===' ') PlaceManager.selectPlace(${index})">
+                            <div class="place-name">${utils.sanitizeHTML(
+                              place.name
+                            )}</div>
+                            <div class="place-address">${utils.sanitizeHTML(
+                              address
+                            )}</div>
+                            <div class="place-meta">
+                                <div class="place-rating">
+                                    <span class="rating-stars" aria-label="Rating">${
+                                      rating.stars
+                                    }</span>
+                                    <span class="rating-value">${
+                                      rating.value
+                                    }</span>
+                                    ${
+                                      priceLevel
+                                        ? `<span class="price-level" aria-label="Price level">${priceLevel}</span>`
+                                        : ""
+                                    }
+                                </div>
+                            </div>
+                            <div class="place-actions">
+                                <button class="btn btn-primary btn-small" 
+                                        onclick="event.stopPropagation(); PlaceManager.getDirections('${
+                                          place.place_id || ""
+                                        }')"
+                                        aria-label="Get directions to ${
+                                          place.name
+                                        }">
+                                    🗺️ Directions
+                                </button>
+                                <button class="btn btn-secondary btn-small" 
+                                        onclick="event.stopPropagation(); PlaceManager.viewOnGoogleMaps('${
+                                          place.place_id || ""
+                                        }')"
+                                        aria-label="View ${
+                                          place.name
+                                        } on Google Maps">
+                                    📍 View on Maps
+                                </button>
+                            </div>
+                        </div>
+                    `;
+            })
+            .join("");
+
+          // Store places in app state
+          appState.currentPlaces = places;
+        }
+
+        static setMapLoading(message) {
+          const mapLoading = document.getElementById("mapLoading");
+          const mapContainer = document.getElementById("map");
+
+          mapLoading.innerHTML = `
+                    <div class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
+                    <div class="map-loading-text">${utils.sanitizeHTML(
+                      message
+                    )}</div>
+                `;
+          mapLoading.style.display = "flex";
+          mapContainer.style.display = "none";
+        }
+      }
+
+      // Map management functions
+      class MapManager {
+        static async loadGoogleMaps() {
+          return new Promise((resolve, reject) => {
+            if (window.google && window.google.maps) {
+              resolve();
+              return;
+            }
+
+            const script = document.createElement("script");
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () =>
+              reject(new Error("Failed to load Google Maps"));
+            document.head.appendChild(script);
+          });
+        }
+
+        static initializeMap(center, places) {
+          const mapContainer = document.getElementById("map");
+          const mapLoading = document.getElementById("mapLoading");
+
+          // Show map, hide loading
+          mapContainer.style.display = "block";
+          mapLoading.style.display = "none";
+
+          // Initialize map if not already done
+          if (!appState.map) {
+            appState.map = new google.maps.Map(mapContainer, {
+              zoom: CONFIG.MAP_ZOOM,
+              center: center,
+              mapTypeId: google.maps.MapTypeId.ROADMAP,
+              styles: [
+                {
+                  featureType: "poi",
+                  elementType: "labels",
+                  stylers: [{ visibility: "simplified" }],
+                },
+              ],
+              mapTypeControl: true,
+              streetViewControl: true,
+              fullscreenControl: true,
+              zoomControl: true,
+            });
+
+            appState.infoWindow = new google.maps.InfoWindow();
+          } else {
+            appState.map.setCenter(center);
+          }
+
+          // Clear existing markers
+          appState.clearMarkers();
+
+          // Add markers for places
+          MapManager.addPlaceMarkers(places);
+
+          // Fit map to show all markers if multiple places
+          if (places.length > 1) {
+            MapManager.fitMapToMarkers();
+          }
+        }
+
+        static addPlaceMarkers(places) {
+          places.forEach((place, index) => {
+            const position = place.geometry
+              ? place.geometry.location
+              : { lat: place.location?.lat, lng: place.location?.lng };
+
+            if (!position || !position.lat || !position.lng) {
+              console.warn("Invalid position for place:", place.name);
+              return;
+            }
+
+            const marker = new google.maps.Marker({
+              position: position,
+              map: appState.map,
+              title: place.name,
+              animation: google.maps.Animation.DROP,
+              icon: {
+                url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                scaledSize: new google.maps.Size(32, 32),
+              },
+            });
+
+            // Add click listener to marker
+            marker.addListener("click", () => {
+              PlaceManager.selectPlace(index);
+            });
+
+            appState.markers.push(marker);
+          });
+        }
+
+        static fitMapToMarkers() {
+          if (appState.markers.length === 0) return;
+
+          const bounds = new google.maps.LatLngBounds();
+          appState.markers.forEach((marker) => {
+            bounds.extend(marker.getPosition());
+          });
+
+          appState.map.fitBounds(bounds);
+
+          // Ensure minimum zoom level
+          const listener = google.maps.event.addListener(
+            appState.map,
+            "idle",
+            () => {
+              if (appState.map.getZoom() > CONFIG.DETAILED_ZOOM) {
+                appState.map.setZoom(CONFIG.DETAILED_ZOOM);
+              }
+              google.maps.event.removeListener(listener);
+            }
+          );
+        }
+
+        static createInfoWindowContent(place) {
+          const rating = utils.formatRating(place.rating);
+          const priceLevel = utils.formatPriceLevel(place.price_level);
+          const address =
+            place.formatted_address ||
+            place.vicinity ||
+            "Address not available";
+
+          return `
+                    <div style="max-width: 300px; font-family: inherit;">
+                        <h3 style="margin: 0 0 10px 0; color: var(--text-primary); font-size: 1.1rem;">
+                            ${utils.sanitizeHTML(place.name)}
+                        </h3>
+                        <p style="margin: 0 0 8px 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            ${utils.sanitizeHTML(address)}
+                        </p>
+                        <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #f6ad55; font-weight: bold;">${
+                              rating.stars
+                            }</span>
+                            <span style="color: var(--text-secondary);">${
+                              rating.value
+                            }</span>
+                            ${
+                              priceLevel
+                                ? `<span style="color: var(--success-color);">${priceLevel}</span>`
+                                : ""
+                            }
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button onclick="PlaceManager.getDirections('${
+                              place.place_id || ""
+                            }')" 
+                                    style="padding: 6px 12px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                                🗺️ Directions
+                            </button>
+                            <button onclick="PlaceManager.viewOnGoogleMaps('${
+                              place.place_id || ""
+                            }')" 
+                                    style="padding: 6px 12px; background: var(--success-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                                📍 View on Maps
+                            </button>
+                        </div>
+                    </div>
+                `;
+        }
+      }
+
+      // Place management functions
+      class PlaceManager {
+        static selectPlace(index) {
+          // Remove previous selection
+          document.querySelectorAll(".place-item").forEach((item) => {
+            item.classList.remove("selected");
+          });
+
+          // Add selection to clicked item
+          const placeItem = document.querySelector(`[data-index="${index}"]`);
+          if (placeItem) {
+            placeItem.classList.add("selected");
+            placeItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+
+          appState.selectedPlaceIndex = index;
+          const selectedPlace = appState.currentPlaces[index];
+
+          if (!selectedPlace) return;
+
+          // Pan map to selected place and show info window
+          if (appState.map && appState.markers[index]) {
+            const marker = appState.markers[index];
+            appState.map.panTo(marker.getPosition());
+            appState.map.setZoom(CONFIG.DETAILED_ZOOM);
+
+            // Close previous info window
+            if (appState.infoWindow) {
+              appState.infoWindow.close();
+            }
+
+            // Open new info window
+            appState.infoWindow.setContent(
+              MapManager.createInfoWindowContent(selectedPlace)
+            );
+            appState.infoWindow.open(appState.map, marker);
+          }
+        }
+
+        static getDirections(placeId) {
+          const place = appState.currentPlaces.find(
+            (p) => p.place_id === placeId
+          );
+          if (!place) {
+            utils.showAlert("Place information not available");
+            return;
+          }
+
+          const address = encodeURIComponent(
+            place.formatted_address || place.vicinity || place.name
+          );
+          const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${address}${
+            placeId ? `&destination_place_id=${placeId}` : ""
+          }`;
+
+          window.open(mapsUrl, "_blank", "noopener,noreferrer");
+        }
+
+        static viewOnGoogleMaps(placeId) {
+          if (!placeId) {
+            utils.showAlert("Place ID not available");
+            return;
+          }
+
+          const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+          window.open(mapsUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+
+      // Event handlers
+      class EventHandlers {
+        static async handleSearch(event) {
+          event.preventDefault();
+
+          if (appState.isLoading) return;
+
+          const formData = new FormData(event.target);
+          const query = formData.get("query")?.trim();
+          const location = formData.get("location")?.trim();
+          const radius = parseInt(formData.get("radius")) || 5000;
+          const type = formData.get("type") || "";
+
+          // Validation
+          if (!query) {
+            utils.showAlert("Please enter what you're looking for");
+            document.getElementById("query").focus();
+            return;
+          }
+
+          // Clear previous results
+          appState.reset();
+
+          // Set loading state
+          utils.setLoadingState(true);
+          UIManager.setMapLoading("Searching places...");
+
+          try {
+            const searchData = {
+              query,
+              location: location || CONFIG.DEFAULT_LOCATION,
+              radius,
+              type,
+            };
+
+            const response = await ApiService.searchPlaces(searchData);
+            UIManager.displayResults(response);
+            utils.showAlert(
+              `Found ${response.places.length} places!`,
+              "success"
+            );
+          } catch (error) {
+            console.error("Search error:", error);
+            utils.showAlert(
+              error.message || "Search failed. Please try again."
+            );
+
+            // Reset map loading state
+            const mapLoading = document.getElementById("mapLoading");
+            mapLoading.innerHTML = `
+                        <div class="empty-state-icon">🗺️</div>
+                        <div class="map-loading-text">Search failed</div>
+                        <p style="font-size: 0.875rem; opacity: 0.8;">Please try again with different search terms</p>
+                    `;
+          } finally {
+            utils.setLoadingState(false);
+          }
+        }
+
+        static async handleLocationDetection() {
+          const locationBtn = document.getElementById("locationBtn");
+          const locationInput = document.getElementById("location");
+          const originalText = locationBtn.textContent;
+
+          try {
+            locationBtn.disabled = true;
+            locationBtn.innerHTML = "🔄 Detecting...";
+
+            const position = await utils.getCurrentLocation();
+            appState.userLocation = position;
+
+            // Reverse geocode to get address
+            try {
+              const response = await fetch(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.lat},${position.lng}&key=${CONFIG.GOOGLE_MAPS_API_KEY}`
+              );
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.results && data.results.length > 0) {
+                  // Find a good address component (city or administrative area)
+                  const result =
+                    data.results.find(
+                      (r) =>
+                        r.types.includes("locality") ||
+                        r.types.includes("administrative_area_level_2")
+                    ) || data.results[0];
+
+                  locationInput.value = result.formatted_address;
+                } else {
+                  locationInput.value = `${position.lat.toFixed(
+                    6
+                  )}, ${position.lng.toFixed(6)}`;
+                }
+              }
+            } catch (geocodeError) {
+              console.warn("Geocoding failed:", geocodeError);
+              locationInput.value = `${position.lat.toFixed(
+                6
+              )}, ${position.lng.toFixed(6)}`;
+            }
+
+            utils.showAlert("Location detected successfully!", "success");
+          } catch (error) {
+            console.error("Location detection failed:", error);
+            utils.showAlert(error.message);
+          } finally {
+            locationBtn.disabled = false;
+            locationBtn.textContent = originalText;
+          }
+        }
+
+        static handleFormValidation() {
+          const queryInput = document.getElementById("query");
+          const searchBtn = document.getElementById("searchBtn");
+
+          const validateForm = () => {
+            const isValid = queryInput.value.trim().length > 0;
+            searchBtn.disabled = !isValid || appState.isLoading;
+          };
+
+          queryInput.addEventListener(
+            "input",
+            utils.debounce(validateForm, CONFIG.DEBOUNCE_DELAY)
+          );
+          validateForm(); // Initial validation
+        }
+      }
+
+      // Application initialization
+      class App {
+        static async init() {
+          try {
+            // Load Google Maps API
+            await MapManager.loadGoogleMaps();
+            console.log("Google Maps loaded successfully");
+
+            // Setup event listeners
+            App.setupEventListeners();
+
+            // Setup form validation
+            EventHandlers.handleFormValidation();
+
+            // Focus on query input
+            document.getElementById("query").focus();
+
+            console.log("Application initialized successfully");
+          } catch (error) {
+            console.error("Application initialization failed:", error);
+            utils.showAlert(
+              "Failed to initialize the application. Please refresh the page."
+            );
+          }
+        }
+
+        static setupEventListeners() {
+          // Search form submission
+          document
+            .getElementById("searchForm")
+            .addEventListener("submit", EventHandlers.handleSearch);
+
+          // Location detection button
+          document
+            .getElementById("locationBtn")
+            .addEventListener("click", EventHandlers.handleLocationDetection);
+
+          // Keyboard shortcuts
+          document.addEventListener("keydown", (event) => {
+            // Ctrl/Cmd + K to focus search
+            if ((event.ctrlKey || event.metaKey) && event.key === "k") {
+              event.preventDefault();
+              document.getElementById("query").focus();
+            }
+
+            // Escape to clear search
+            if (event.key === "Escape") {
+              const queryInput = document.getElementById("query");
+              if (queryInput === document.activeElement) {
+                queryInput.blur();
+              }
+            }
+          });
+
+          // Handle form input changes for better UX
+          const inputs = document.querySelectorAll(".form-input, .form-select");
+          inputs.forEach((input) => {
+            input.addEventListener("focus", () => {
+              input.parentElement.style.transform = "translateY(-2px)";
+            });
+
+            input.addEventListener("blur", () => {
+              input.parentElement.style.transform = "translateY(0)";
+            });
+          });
+        }
+      }
+
+      // Global error handler
+      window.addEventListener("error", (event) => {
+        console.error("Global error:", event.error);
+        utils.showAlert(
+          "An unexpected error occurred. Please refresh the page."
+        );
+      });
+
+      window.addEventListener("unhandledrejection", (event) => {
+        console.error("Unhandled promise rejection:", event.reason);
+        utils.showAlert(
+          "A network error occurred. Please check your connection."
+        );
+      });
+
+      // Performance monitoring
+      window.addEventListener("load", () => {
+        const loadTime = performance.now();
+        console.log(`Page loaded in ${loadTime.toFixed(2)}ms`);
+      });
+
+      // Initialize app when DOM is ready
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", App.init);
+      } else {
+        App.init();
+      }
+
+      // Make classes available globally for debugging
+      window.App = {
+        AppState,
+        ApiService,
+        UIManager,
+        MapManager,
+        PlaceManager,
+        EventHandlers,
+        utils,
+        CONFIG,
+      };
+    </script>
+  </body>
+</html>

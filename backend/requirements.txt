@@ -1,0 +1,26 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Google Maps API
+googlemaps==4.10.0
+
+# HTTP requests
+requests==2.31.0
+
+# Environment management
+python-dotenv==1.0.0
+
+# Optional: Rate limiting (can be installed separately)
+slowapi==0.1.9
+
+# Additional utilities
+python-dateutil==2.8.2
+
+# Development dependencies (optional)
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
+# black==23.11.0
+# flake8==6.1.0
