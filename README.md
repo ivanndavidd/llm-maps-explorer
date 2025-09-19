@@ -74,8 +74,8 @@ AI-powered location search with Google Maps integration and LLM recommendations.
 1. **Clone the repository**:
 
    ```bash
-   git clone
-   cd
+   git clone https://github.com/ivanndavidd/llm-maps-explorer.git
+   cd llm-maps-explorer
    ```
 
 2. **Create Python virtual environment**:
